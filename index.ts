@@ -35,7 +35,13 @@ const LANGS = [
 const MAX_OUTPUT = 60_000;
 
 type Json = any;
-type ToolCtx = { cwd?: string };
+type ToolCtx = {
+	cwd?: string;
+	ui?: {
+		setStatus?: (id: string, text: string | undefined) => void;
+		theme?: { fg?: (color: "success" | "error" | "accent", text: string) => string };
+	};
+};
 
 function text(content: string, details: Record<string, unknown> = {}) {
 	return { content: [{ type: "text" as const, text: content }], details };
@@ -126,6 +132,10 @@ class LspClient {
 			this.proc = undefined;
 			this.initialized = false;
 		});
+	}
+
+	isActive() {
+		return Boolean(this.proc) && this.initialized;
 	}
 
 	private onData(chunk: Buffer) {
@@ -227,6 +237,20 @@ class LspClient {
 
 const clients = new Map<string, LspClient>();
 
+function activeLspCount() {
+	return [...clients.values()].filter((client) => client.isActive()).length;
+}
+
+function updateLspStatus(ctx: ToolCtx | undefined) {
+	const setStatus = ctx?.ui?.setStatus;
+	if (typeof setStatus !== "function") return;
+	const count = activeLspCount();
+	const label = count > 0 ? `LSP Active (${count})` : "LSP Inactive";
+	const color = count > 0 ? "success" : "error";
+	const fg = ctx?.ui?.theme?.fg;
+	setStatus("pi-lsp-lite-lsp", typeof fg === "function" ? fg(color, label) : label);
+}
+
 function languageIdFor(file: string) {
 	const ext = path.extname(file);
 	if ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext))
@@ -281,6 +305,9 @@ function pretty(value: Json) {
 }
 
 export default function (pi: ExtensionAPI) {
+	pi.on("session_start", async (_event, ctx) => {
+		updateLspStatus(ctx as ToolCtx);
+	});
 	pi.registerTool({
 		name: "ast_grep_search",
 		label: "AST Search",
@@ -376,6 +403,7 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
+			updateLspStatus(ctx);
 			const result = await c.request("textDocument/definition", {
 				textDocument: { uri },
 				position: lspPos(p.line, p.character),
@@ -405,6 +433,7 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
+			updateLspStatus(ctx);
 			const result = await c.request("textDocument/references", {
 				textDocument: { uri },
 				position: lspPos(p.line, p.character),
@@ -434,6 +463,7 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
+			updateLspStatus(ctx);
 			const result = await c.request("textDocument/hover", {
 				textDocument: { uri },
 				position: lspPos(p.line, p.character),
@@ -462,6 +492,7 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
+			updateLspStatus(ctx);
 			const result = await c.request("textDocument/documentSymbol", {
 				textDocument: { uri },
 			});
@@ -495,6 +526,7 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
+			updateLspStatus(ctx);
 			await new Promise((r) =>
 				setTimeout(r, Math.max(0, Math.min(5000, p.waitMs ?? 800))),
 			);
