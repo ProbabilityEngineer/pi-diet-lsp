@@ -4,11 +4,20 @@ Lightweight pi extension with focused LSP code-intelligence tools:
 
 - `lsp_definition`
 - `lsp_references`
-- `lsp_symbols`
+- `lsp_symbols` — document symbols for a file, or workspace symbols by query
 - `lsp_hover`
 - `lsp_diagnostics`
 
 No automatic lint pipeline, no context injection, no read guard, no non-actionable widget, no skills, no session-start bootstrap.
+
+`lsp_symbols` has two modes:
+
+```json
+{ "filePath": "src/index.ts", "query": "optional-filter" }
+{ "query": "SymbolName" }
+```
+
+With `filePath`, it returns document symbols. Without `filePath`, it uses LSP workspace symbol search.
 
 ## Install
 

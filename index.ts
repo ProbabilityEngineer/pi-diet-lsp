@@ -239,6 +239,12 @@ function pretty(value: Json) {
 	return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
+function requireQuery(query: unknown) {
+	const value = String(query ?? "").trim();
+	if (!value) throw new Error("query is required when filePath is omitted");
+	return value;
+}
+
 const LSP_PROMPT_SNIPPET =
 	"Tool routing: use LSP first for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing.";
 const LSP_PROMPT_GUIDELINES = [
@@ -348,11 +354,11 @@ export default function (pi: ExtensionAPI) {
 		name: "lsp_symbols",
 		label: "LSP Symbols",
 		description:
-			"List document symbols for a file, optionally filtered by query.",
+			"List document symbols for a file, or workspace symbols when filePath is omitted and query is provided.",
 		promptSnippet: LSP_PROMPT_SNIPPET,
 		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
-			filePath: Type.String(),
+			filePath: Type.Optional(Type.String()),
 			query: Type.Optional(Type.String()),
 		}),
 		async execute(
@@ -362,8 +368,18 @@ export default function (pi: ExtensionAPI) {
 			_u: unknown,
 			ctx: ToolCtx,
 		) {
-			const file = resolvePath(ctx.cwd, p.filePath);
 			const cwd = ctx.cwd ?? process.cwd();
+			if (!p.filePath) {
+				const q = requireQuery(p.query);
+				const probeFile = path.join(cwd, "package.json");
+				const c = await getClient(cwd, probeFile);
+				await c.ensure();
+				updateLspStatus(ctx);
+				const result = await c.request("workspace/symbol", { query: q });
+				return text(pretty(result));
+			}
+
+			const file = resolvePath(ctx.cwd, p.filePath);
 			const c = await getClient(cwd, file);
 			const uri = await c.open(file);
 			updateLspStatus(ctx);
