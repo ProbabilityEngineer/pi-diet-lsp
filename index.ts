@@ -115,11 +115,15 @@ class LspClient {
 	private diagnostics = new Map<string, Json[]>();
 	initialized = false;
 
-	constructor(
-		private command: string,
-		private args: string[],
-		private cwd: string,
-	) {}
+	private command: string;
+	private args: string[];
+	private cwd: string;
+
+	constructor(command: string, args: string[], cwd: string) {
+		this.command = command;
+		this.args = args;
+		this.cwd = cwd;
+	}
 
 	start() {
 		if (this.proc) return;
