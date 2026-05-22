@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -54,6 +55,14 @@ class LspClient {
 			stdio: "pipe",
 		});
 		this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+		this.proc.on("error", (error) => {
+			for (const pending of this.pending.values()) {
+				pending.reject(error instanceof Error ? error : new Error(String(error)));
+			}
+			this.pending.clear();
+			this.proc = undefined;
+			this.initialized = false;
+		});
 		this.proc.on("exit", () => {
 			this.proc = undefined;
 			this.initialized = false;
@@ -232,6 +241,30 @@ async function getClient(cwd: string, filePath: string) {
 	return c;
 }
 
+function workspaceProbeFile(cwd: string) {
+	const candidates = [
+		"src/index.ts",
+		"index.ts",
+		"src/index.tsx",
+		"index.tsx",
+		"src/index.js",
+		"index.js",
+		"src/main.ts",
+		"main.ts",
+		"src/main.js",
+		"main.js",
+	];
+	const found = candidates
+		.map((candidate) => path.join(cwd, candidate))
+		.find((candidate) => fsSync.existsSync(candidate) && serverFor(candidate));
+	if (!found) {
+		throw new Error(
+			"Workspace symbol search needs a source-file language server probe, but no supported source file was found. Provide filePath for document symbols instead.",
+		);
+	}
+	return found;
+}
+
 function lspPos(line: number, character: number) {
 	return { line: Math.max(0, line - 1), character: Math.max(0, character - 1) };
 }
@@ -371,9 +404,9 @@ export default function (pi: ExtensionAPI) {
 			const cwd = ctx.cwd ?? process.cwd();
 			if (!p.filePath) {
 				const q = requireQuery(p.query);
-				const probeFile = path.join(cwd, "package.json");
+				const probeFile = workspaceProbeFile(cwd);
 				const c = await getClient(cwd, probeFile);
-				await c.ensure();
+				await c.open(probeFile);
 				updateLspStatus(ctx);
 				const result = await c.request("workspace/symbol", { query: q });
 				return text(pretty(result));
