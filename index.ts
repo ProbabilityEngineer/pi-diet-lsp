@@ -5,34 +5,6 @@ import { pathToFileURL } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const LANGS = [
-	"bash",
-	"c",
-	"cpp",
-	"csharp",
-	"css",
-	"elixir",
-	"go",
-	"haskell",
-	"html",
-	"java",
-	"javascript",
-	"json",
-	"kotlin",
-	"lua",
-	"nix",
-	"php",
-	"python",
-	"ruby",
-	"rust",
-	"scala",
-	"solidity",
-	"swift",
-	"tsx",
-	"typescript",
-	"yaml",
-] as const;
-const MAX_OUTPUT = 60_000;
 
 type Json = any;
 type ToolCtx = {
@@ -53,58 +25,6 @@ function resolvePath(cwd: string | undefined, p: string) {
 	return path.isAbsolute(p) ? p : path.resolve(cwd ?? process.cwd(), p);
 }
 
-async function run(
-	cmd: string,
-	args: string[],
-	cwd?: string,
-): Promise<{ code: number | null; stdout: string; stderr: string }> {
-	return await new Promise((resolve) => {
-		const child = spawn(cmd, args, { cwd: cwd ?? process.cwd(), shell: false });
-		let stdout = "";
-		let stderr = "";
-		child.stdout.on("data", (d) => {
-			stdout += String(d);
-			if (stdout.length > MAX_OUTPUT) child.kill();
-		});
-		child.stderr.on("data", (d) => {
-			stderr += String(d);
-			if (stderr.length > MAX_OUTPUT) child.kill();
-		});
-		child.on("error", (err) =>
-			resolve({ code: 127, stdout, stderr: String(err) }),
-		);
-		child.on("close", (code) => resolve({ code, stdout, stderr }));
-	});
-}
-
-async function sg(args: string[], cwd?: string) {
-	let res = await run("sg", args, cwd);
-	if (res.code === 127)
-		res = await run("npx", ["--yes", "@ast-grep/cli", ...args], cwd);
-	return res;
-}
-
-function formatSgJson(stdout: string, stderr: string) {
-	const raw = stdout.trim();
-	if (!raw) return stderr.trim() || "No matches";
-	try {
-		const data = JSON.parse(raw);
-		const arr = Array.isArray(data) ? data : [data];
-		if (arr.length === 0) return "No matches";
-		return arr
-			.slice(0, 100)
-			.map((m: any) => {
-				const file = m.file ?? m.path ?? "?";
-				const start = m.range?.start;
-				const line = typeof start?.line === "number" ? start.line + 1 : "?";
-				const body = String(m.text ?? m.lines ?? "").trim();
-				return `${file}:${line}\n${body}`;
-			})
-			.join("\n\n---\n");
-	} catch {
-		return raw || stderr.trim();
-	}
-}
 
 class LspClient {
 	private proc?: ChildProcessWithoutNullStreams;
@@ -323,81 +243,6 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		updateLspStatus(ctx as ToolCtx);
 	});
-	pi.registerTool({
-		name: "ast_grep_search",
-		label: "AST Search",
-		description:
-			"AST-aware code search. Use code-shaped patterns, not regex/text. Examples: foo($$$ARGS), function $NAME($$$ARGS) { $$$BODY }.",
-		parameters: Type.Object({
-			pattern: Type.String(),
-			lang: Type.String({ enum: [...LANGS] as string[] }),
-			paths: Type.Optional(Type.Array(Type.String())),
-			context: Type.Optional(Type.Number()),
-		}),
-		async execute(
-			_id: string,
-			params: any,
-			_signal: AbortSignal,
-			_update: unknown,
-			ctx: ToolCtx,
-		) {
-			const args = [
-				"run",
-				"-p",
-				params.pattern,
-				"--lang",
-				params.lang,
-				"--json=compact",
-			];
-			if (params.context != null)
-				args.push("--context", String(params.context));
-			args.push(...(params.paths?.length ? params.paths : [ctx.cwd ?? "."]));
-			const res = await sg(args, ctx.cwd);
-			return text(formatSgJson(res.stdout, res.stderr), { code: res.code });
-		},
-	} as any);
-
-	pi.registerTool({
-		name: "ast_grep_replace",
-		label: "AST Replace",
-		description:
-			"AST-aware replacement. Dry-run by default; set apply=true to write changes.",
-		parameters: Type.Object({
-			pattern: Type.String(),
-			rewrite: Type.String(),
-			lang: Type.String({ enum: [...LANGS] as string[] }),
-			paths: Type.Array(Type.String()),
-			apply: Type.Optional(Type.Boolean()),
-		}),
-		async execute(
-			_id: string,
-			params: any,
-			_signal: AbortSignal,
-			_update: unknown,
-			ctx: ToolCtx,
-		) {
-			const args = [
-				"run",
-				"-p",
-				params.pattern,
-				"-r",
-				params.rewrite,
-				"--lang",
-				params.lang,
-			];
-			if (params.apply) args.push("--update-all");
-			else args.push("--json=compact");
-			args.push(...params.paths);
-			const res = await sg(args, ctx.cwd);
-			return text(
-				params.apply
-					? res.stderr || res.stdout || "Applied"
-					: formatSgJson(res.stdout, res.stderr),
-				{ code: res.code, applied: !!params.apply },
-			);
-		},
-	} as any);
-
 	pi.registerTool({
 		name: "lsp_definition",
 		label: "LSP Definition",
