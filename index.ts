@@ -39,6 +39,7 @@ type ToolCtx = {
 	cwd?: string;
 	ui?: {
 		setStatus?: (id: string, text: string | undefined) => void;
+		setWidget?: (id: string, widget: string[] | undefined, options?: { placement: "belowEditor" }) => void;
 		theme?: { fg?: (color: "success" | "error" | "accent", text: string) => string };
 	};
 };
@@ -240,18 +241,19 @@ class LspClient {
 }
 
 const clients = new Map<string, LspClient>();
+let lastUiCtx: ToolCtx | undefined;
 
 function activeLspCount() {
 	return [...clients.values()].filter((client) => client.isActive()).length;
 }
 
 function updateLspStatus(ctx: ToolCtx | undefined) {
-	const setStatus = ctx?.ui?.setStatus;
-	if (typeof setStatus !== "function") return;
+	if (ctx?.ui) lastUiCtx = ctx;
+	const uiCtx = ctx?.ui ? ctx : lastUiCtx;
 	const count = activeLspCount();
 	const label = count > 0 ? `LSP Active (${count})` : "LSP Inactive";
 	const color = count > 0 ? "success" : "error";
-	const theme = ctx?.ui?.theme;
+	const theme = uiCtx?.ui?.theme;
 	let rendered = label;
 	try {
 		if (typeof theme?.fg === "function") rendered = theme.fg(color, label);
@@ -259,7 +261,10 @@ function updateLspStatus(ctx: ToolCtx | undefined) {
 		// Some pi theme methods depend on internal binding during early reload.
 		rendered = label;
 	}
-	setStatus("pi-lsp-lite-lsp", rendered);
+	uiCtx?.ui?.setStatus?.("pi-lsp-lite-lsp", rendered);
+	uiCtx?.ui?.setWidget?.("pi-lsp-lite", [`pi-lsp-lite: ${rendered}`], {
+		placement: "belowEditor",
+	});
 }
 
 function languageIdFor(file: string) {
