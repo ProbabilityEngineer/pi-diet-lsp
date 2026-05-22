@@ -251,8 +251,15 @@ function updateLspStatus(ctx: ToolCtx | undefined) {
 	const count = activeLspCount();
 	const label = count > 0 ? `LSP Active (${count})` : "LSP Inactive";
 	const color = count > 0 ? "success" : "error";
-	const fg = ctx?.ui?.theme?.fg;
-	setStatus("pi-lsp-lite-lsp", typeof fg === "function" ? fg(color, label) : label);
+	const theme = ctx?.ui?.theme;
+	let rendered = label;
+	try {
+		if (typeof theme?.fg === "function") rendered = theme.fg(color, label);
+	} catch {
+		// Some pi theme methods depend on internal binding during early reload.
+		rendered = label;
+	}
+	setStatus("pi-lsp-lite-lsp", rendered);
 }
 
 function languageIdFor(file: string) {
