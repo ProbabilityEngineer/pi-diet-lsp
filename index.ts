@@ -40,6 +40,7 @@ type ToolCtx = {
 	ui?: {
 		setStatus?: (id: string, text: string | undefined) => void;
 		setWidget?: (id: string, widget: string[] | undefined, options?: { placement: "belowEditor" }) => void;
+		notify?: (message: string, level?: "info" | "warning" | "error") => void;
 		theme?: { fg?: (color: "success" | "error" | "accent", text: string) => string };
 	};
 };
@@ -262,9 +263,7 @@ function updateLspStatus(ctx: ToolCtx | undefined) {
 		rendered = label;
 	}
 	uiCtx?.ui?.setStatus?.("pi-lsp-lite-lsp", rendered);
-	uiCtx?.ui?.setWidget?.("pi-lsp-lite", [`pi-lsp-lite: ${rendered}`], {
-		placement: "belowEditor",
-	});
+	uiCtx?.ui?.setWidget?.("pi-lsp-lite", undefined);
 }
 
 function languageIdFor(file: string) {
