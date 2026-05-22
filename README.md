@@ -34,6 +34,7 @@ LSP tools use language servers from `PATH`:
 - Python: `pyright-langserver --stdio`
 - Go: `gopls`
 - Rust: `rust-analyzer`
+- Swift: `sourcekit-lsp`
 - JSON: `vscode-json-language-server --stdio`
 - YAML: `yaml-language-server --stdio`
 
