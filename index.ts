@@ -240,9 +240,9 @@ function pretty(value: Json) {
 }
 
 const LSP_PROMPT_SNIPPET =
-	"Tool routing: use LSP for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing.";
+	"Tool routing: use LSP first for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing.";
 const LSP_PROMPT_GUIDELINES = [
-	"Use LSP tools for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing; use Semble for behavior discovery, AST for structural patterns, and grep for exact literals.",
+	"Use LSP tools as the first choice for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing; use Semble for behavior discovery, AST for structural patterns, and grep for exact literals.",
 ];
 
 export default function (pi: ExtensionAPI) {
