@@ -239,6 +239,12 @@ function pretty(value: Json) {
 	return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
+const LSP_PROMPT_SNIPPET =
+	"Tool routing: use LSP for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing.";
+const LSP_PROMPT_GUIDELINES = [
+	"Use LSP tools for known symbols, definitions, references, hover/types, diagnostics, and callsite tracing; use Semble for behavior discovery, AST for structural patterns, and grep for exact literals.",
+];
+
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		updateLspStatus(ctx as ToolCtx);
@@ -247,6 +253,8 @@ export default function (pi: ExtensionAPI) {
 		name: "lsp_definition",
 		label: "LSP Definition",
 		description: "Jump to definition at a 1-based file position.",
+		promptSnippet: LSP_PROMPT_SNIPPET,
+		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
 			filePath: Type.String(),
 			line: Type.Number(),
@@ -276,6 +284,8 @@ export default function (pi: ExtensionAPI) {
 		name: "lsp_references",
 		label: "LSP References",
 		description: "Find references at a 1-based file position.",
+		promptSnippet: LSP_PROMPT_SNIPPET,
+		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
 			filePath: Type.String(),
 			line: Type.Number(),
@@ -307,6 +317,8 @@ export default function (pi: ExtensionAPI) {
 		name: "lsp_hover",
 		label: "LSP Hover",
 		description: "Show hover/type info at a 1-based file position.",
+		promptSnippet: LSP_PROMPT_SNIPPET,
+		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
 			filePath: Type.String(),
 			line: Type.Number(),
@@ -337,6 +349,8 @@ export default function (pi: ExtensionAPI) {
 		label: "LSP Symbols",
 		description:
 			"List document symbols for a file, optionally filtered by query.",
+		promptSnippet: LSP_PROMPT_SNIPPET,
+		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
 			filePath: Type.String(),
 			query: Type.Optional(Type.String()),
@@ -371,6 +385,8 @@ export default function (pi: ExtensionAPI) {
 		name: "lsp_diagnostics",
 		label: "LSP Diagnostics",
 		description: "Open a file in LSP and return current diagnostics.",
+		promptSnippet: LSP_PROMPT_SNIPPET,
+		promptGuidelines: LSP_PROMPT_GUIDELINES,
 		parameters: Type.Object({
 			filePath: Type.String(),
 			waitMs: Type.Optional(Type.Number()),
