@@ -1,6 +1,6 @@
 {
   "name": "pi-diet-lsp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "On-demand LSP code-intelligence tools for Pi without automatic diagnostics or context injection.",
   "repository": {
@@ -12,13 +12,26 @@
     "lint": "tsc --noEmit",
     "build": "tsc --project tsconfig.json"
   },
-  "keywords": ["pi-package", "pi-extension", "pi", "lsp", "language-server", "code-intelligence"],
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi",
+    "lsp",
+    "language-server",
+    "code-intelligence"
+  ],
   "homepage": "https://github.com/ProbabilityEngineer/pi-diet-lsp#readme",
   "bugs": {
     "url": "https://github.com/ProbabilityEngineer/pi-diet-lsp/issues"
   },
   "license": "MIT",
-  "files": ["index.ts", "README.md", "LICENSE", "tsconfig.json", "scripts"],
+  "files": [
+    "index.ts",
+    "README.md",
+    "LICENSE",
+    "tsconfig.json",
+    "scripts"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "typebox": "*"
@@ -29,6 +42,8 @@
     "typebox": "^1.0.0"
   },
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }
