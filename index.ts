@@ -268,8 +268,51 @@ function workspaceProbeFile(cwd: string) {
 function lspPos(line: number, character: number) {
 	return { line: Math.max(0, line - 1), character: Math.max(0, character - 1) };
 }
+const MAX_JSON_ITEMS = 80;
+const MAX_TEXT_CHARS = 24_000;
+
+function truncateText(value: string, max = MAX_TEXT_CHARS) {
+	return value.length <= max
+		? value
+		: `${value.slice(0, max)}\n\n[truncated ${value.length - max} chars; refine query or position]`;
+}
+
 function pretty(value: Json) {
-	return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+	return truncateText(typeof value === "string" ? value : JSON.stringify(value, null, 2));
+}
+
+function relativeUri(cwd: string, uri: string | undefined) {
+	if (!uri?.startsWith("file://")) return uri ?? "";
+	try {
+		const file = decodeURIComponent(new URL(uri).pathname);
+		return path.relative(cwd, file) || path.basename(file);
+	} catch {
+		return uri;
+	}
+}
+
+function compactRange(range: any) {
+	const start = range?.start;
+	if (!start) return "";
+	return `${Number(start.line ?? 0) + 1}:${Number(start.character ?? 0) + 1}`;
+}
+
+function compactLocation(cwd: string, location: any) {
+	const loc = Array.isArray(location) ? location[0] : location;
+	return `${relativeUri(cwd, loc?.uri ?? loc?.targetUri)}:${compactRange(loc?.range ?? loc?.targetRange)}`;
+}
+
+function compactSymbol(cwd: string, symbol: any) {
+	const loc = symbol.location ?? { uri: symbol.uri, range: symbol.range ?? symbol.selectionRange };
+	const container = symbol.containerName ? ` ${symbol.containerName}.` : " ";
+	return `${symbol.name ?? "<unnamed>"}${container}${compactLocation(cwd, loc)}`;
+}
+
+function formatLimitedList(cwd: string, items: any[], compact: (cwd: string, item: any) => string) {
+	const total = items.length;
+	const shown = items.slice(0, MAX_JSON_ITEMS).map((item) => compact(cwd, item));
+	const suffix = total > shown.length ? `\n... ${total - shown.length} more; refine query` : "";
+	return `${shown.join("\n")}${suffix}`;
 }
 
 function requireQuery(query: unknown) {
@@ -348,7 +391,7 @@ export default function (pi: ExtensionAPI) {
 				position: lspPos(p.line, p.character),
 				context: { includeDeclaration: p.includeDeclaration ?? true },
 			});
-			return text(pretty(result));
+			return text(Array.isArray(result) ? formatLimitedList(cwd, result, compactLocation) : pretty(result));
 		},
 	} as any);
 
@@ -409,7 +452,7 @@ export default function (pi: ExtensionAPI) {
 				await c.open(probeFile);
 				updateLspStatus(ctx);
 				const result = await c.request("workspace/symbol", { query: q });
-				return text(pretty(result));
+				return text(Array.isArray(result) ? formatLimitedList(cwd, result, compactSymbol) : pretty(result));
 			}
 
 			const file = resolvePath(ctx.cwd, p.filePath);
@@ -426,7 +469,7 @@ export default function (pi: ExtensionAPI) {
 							JSON.stringify(s).toLowerCase().includes(q),
 						)
 					: result;
-			return text(pretty(filtered));
+			return text(Array.isArray(filtered) ? formatLimitedList(cwd, filtered, compactSymbol) : pretty(filtered));
 		},
 	} as any);
 
