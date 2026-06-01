@@ -1,29 +1,28 @@
 {
-  "name": "pi-lsp-lite",
+  "name": "pi-diet-lsp",
   "version": "0.1.0",
   "type": "module",
-  "description": "Lightweight pi extension for ast-grep and focused LSP tools",
+  "description": "On-demand LSP code-intelligence tools for Pi without automatic diagnostics or context injection.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apmantza/pi-lsp-lite.git"
+    "url": "git+https://github.com/ProbabilityEngineer/pi-diet-lsp.git"
   },
   "main": "index.ts",
   "scripts": {
     "lint": "tsc --noEmit",
     "build": "tsc --project tsconfig.json"
   },
-  "keywords": ["pi", "pi-extension", "lsp", "ast-grep"],
+  "keywords": ["pi-package", "pi-extension", "pi", "lsp", "language-server", "code-intelligence"],
   "license": "MIT",
-  "files": ["index.ts", "README.md", "tsconfig.json"],
+  "files": ["index.ts", "README.md", "tsconfig.json", "scripts"],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
-  },
-  "dependencies": {
-    "typebox": "^1.0.0"
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typebox": "^1.0.0"
   },
   "pi": {
     "extensions": ["./index.ts"]

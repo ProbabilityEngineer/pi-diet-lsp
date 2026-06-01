@@ -1,14 +1,18 @@
-# pi-lsp-lite
+# pi-diet-lsp
 
-Lightweight pi extension with focused LSP code-intelligence tools:
+On-demand LSP code-intelligence tools for Pi without automatic diagnostics or context injection.
 
-- `lsp_definition`
-- `lsp_references`
+`pi-diet-lsp` gives Pi agents focused, model-visible Language Server Protocol tools for definitions, references, symbols, hover/type information, and diagnostics. It keeps the surface compact and explicit: no automatic diagnostics pipeline, no context injection, no read guard, no skills, and no session-start bootstrap. Agents call the tools when precise code intelligence is useful.
+
+This is intentionally different from automatic LSP feedback extensions: `pi-diet-lsp` favors low prompt overhead and explicit tool calls over continuously appending diagnostics to every edit.
+
+## Tools
+
+- `lsp_definition` — jump to definition at a 1-based file position
+- `lsp_references` — find references at a 1-based file position
 - `lsp_symbols` — document symbols for a file, or workspace symbols by query
-- `lsp_hover`
-- `lsp_diagnostics`
-
-No automatic lint pipeline, no context injection, no read guard, no non-actionable widget, no skills, no session-start bootstrap.
+- `lsp_hover` — show hover/type info at a 1-based file position
+- `lsp_diagnostics` — open a file in LSP and return current diagnostics
 
 `lsp_symbols` has two modes:
 
@@ -19,10 +23,26 @@ No automatic lint pipeline, no context injection, no read guard, no non-actionab
 
 With `filePath`, it returns document symbols. Without `filePath`, it uses LSP workspace symbol search.
 
+Large symbol/reference results are compacted and capped to avoid runaway context growth.
+
 ## Install
 
+From npm, after publication:
+
 ```bash
-pi install git:github.com/ProbabilityEngineer/pi-lsp-lite
+pi install npm:pi-diet-lsp
+```
+
+From GitHub:
+
+```bash
+pi install git:github.com/ProbabilityEngineer/pi-diet-lsp
+```
+
+For project-local install, add `-l`:
+
+```bash
+pi install -l git:github.com/ProbabilityEngineer/pi-diet-lsp
 ```
 
 For local testing:
@@ -43,4 +63,6 @@ LSP tools use language servers from `PATH`:
 - JSON: `vscode-json-language-server --stdio`
 - YAML: `yaml-language-server --stdio`
 
-This intentionally avoids pi-lens' large installer/bootstrap layer.
+## Prompt overhead
+
+`pi-diet-lsp` avoids automatic context injection. It registers compact tools and guidance, then waits for agents to call LSP tools explicitly when code intelligence is relevant.

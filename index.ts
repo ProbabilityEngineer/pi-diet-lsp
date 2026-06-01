@@ -191,8 +191,8 @@ function updateLspStatus(ctx: ToolCtx | undefined) {
 		// Some pi theme methods depend on internal binding during early reload.
 		rendered = label;
 	}
-	uiCtx?.ui?.setStatus?.("pi-lsp-lite-lsp", rendered);
-	uiCtx?.ui?.setWidget?.("pi-lsp-lite", undefined);
+	uiCtx?.ui?.setStatus?.("pi-diet-lsp", rendered);
+	uiCtx?.ui?.setWidget?.("pi-diet-lsp", undefined);
 }
 
 function languageIdFor(file: string) {
