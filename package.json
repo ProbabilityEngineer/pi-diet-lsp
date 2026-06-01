@@ -13,8 +13,12 @@
     "build": "tsc --project tsconfig.json"
   },
   "keywords": ["pi-package", "pi-extension", "pi", "lsp", "language-server", "code-intelligence"],
+  "homepage": "https://github.com/ProbabilityEngineer/pi-diet-lsp#readme",
+  "bugs": {
+    "url": "https://github.com/ProbabilityEngineer/pi-diet-lsp/issues"
+  },
   "license": "MIT",
-  "files": ["index.ts", "README.md", "tsconfig.json", "scripts"],
+  "files": ["index.ts", "README.md", "LICENSE", "tsconfig.json", "scripts"],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "typebox": "*"
