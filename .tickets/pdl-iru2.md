@@ -1,6 +1,6 @@
 ---
 id: pdl-iru2
-status: in_progress
+status: closed
 deps: []
 links: []
 created: 2026-06-16T10:28:46Z

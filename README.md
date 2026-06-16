@@ -58,6 +58,7 @@ LSP tools resolve language servers from `PATH` using broader built-in defaults a
 Current built-in mappings include:
 
 - TypeScript/JavaScript: `typescript-language-server --stdio`
+- Vue: `vue-language-server --stdio`
 - Python: `basedpyright-langserver --stdio`, fallback `pyright-langserver --stdio`
 - Go: `gopls`
 - Rust: `rust-analyzer`

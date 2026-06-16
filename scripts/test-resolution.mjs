@@ -13,6 +13,7 @@ for (const name of [
   "basedpyright-langserver",
   "clangd",
   "csharp-ls",
+  "vue-language-server",
   "vscode-html-language-server",
   "nixd",
   "custom-lua-lsp",
@@ -65,12 +66,14 @@ assert.equal(resolveLanguageSpec("x.py")?.languageId, "python");
 assert.equal(resolveLanguageSpec("x.cpp")?.languageId, "cpp");
 assert.equal(resolveLanguageSpec("x.c")?.languageId, "c");
 assert.equal(resolveLanguageSpec("x.cs")?.languageId, "csharp");
+assert.equal(resolveLanguageSpec("x.vue")?.languageId, "vue");
 assert.equal(resolveLanguageSpec("x.html")?.languageId, "html");
 assert.equal(resolveLanguageSpec("x.nix")?.languageId, "nix");
 assert.equal(resolveLanguageSpec("x.lua")?.languageId, "lua");
 assert.equal(serverFor("x.py")?.command, "basedpyright-langserver");
 assert.equal(serverFor("x.cpp")?.command, "clangd");
 assert.equal(serverFor("x.cs")?.command, "csharp-ls");
+assert.equal(serverFor("x.vue")?.command, "vue-language-server");
 assert.equal(serverFor("x.html")?.command, "vscode-html-language-server");
 assert.equal(serverFor("x.nix")?.command, "nixd");
 assert.equal(serverFor("x.lua")?.command, "custom-lua-lsp");

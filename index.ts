@@ -195,6 +195,11 @@ const BUILTIN_LANGUAGES: LanguageSpec[] = [
 		servers: [{ command: "typescript-language-server", args: ["--stdio"] }],
 	},
 	{
+		languageId: "vue",
+		extensions: [".vue"],
+		servers: [{ command: "vue-language-server", args: ["--stdio"] }],
+	},
+	{
 		languageId: "python",
 		extensions: [".py"],
 		servers: [
