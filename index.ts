@@ -208,6 +208,14 @@ function languageIdFor(file: string) {
 	return ext.replace(/^\./, "") || "plaintext";
 }
 
+function commandAvailable(command: string) {
+	const pathValue = process.env.PATH ?? "";
+	const extensions = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
+	return pathValue.split(path.delimiter).some((dir) =>
+		extensions.some((ext) => fsSync.existsSync(path.join(dir, `${command}${ext}`))),
+	);
+}
+
 function serverFor(
 	file: string,
 ): { command: string; args: string[] } | undefined {
@@ -215,7 +223,12 @@ function serverFor(
 	if ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext))
 		return { command: "typescript-language-server", args: ["--stdio"] };
 	if (ext === ".py")
-		return { command: "pyright-langserver", args: ["--stdio"] };
+		return {
+			command: commandAvailable("basedpyright-langserver")
+				? "basedpyright-langserver"
+				: "pyright-langserver",
+			args: ["--stdio"],
+		};
 	if (ext === ".go") return { command: "gopls", args: [] };
 	if (ext === ".rs") return { command: "rust-analyzer", args: [] };
 	if (ext === ".swift") return { command: "sourcekit-lsp", args: [] };

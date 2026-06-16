@@ -1,6 +1,6 @@
 {
   "name": "pi-diet-lsp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "On-demand LSP code-intelligence tools for Pi without automatic diagnostics or context injection.",
   "repository": {

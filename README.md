@@ -56,7 +56,7 @@ pi -e ./index.ts
 LSP tools use language servers from `PATH`:
 
 - TypeScript/JavaScript: `typescript-language-server --stdio`
-- Python: `pyright-langserver --stdio`
+- Python: `basedpyright-langserver --stdio` when available, otherwise `pyright-langserver --stdio`
 - Go: `gopls`
 - Rust: `rust-analyzer`
 - Swift: `sourcekit-lsp`
