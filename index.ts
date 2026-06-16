@@ -173,6 +173,105 @@ class LspClient {
 const clients = new Map<string, LspClient>();
 let lastUiCtx: ToolCtx | undefined;
 
+type ServerSpec = { command: string; args: string[] };
+type LanguageSpec = {
+	languageId: string;
+	extensions: string[];
+	servers: ServerSpec[];
+};
+type LspConfig = {
+	languages?: Record<string, { languageId?: string; extensions?: string[]; servers?: ServerSpec[] }>;
+};
+
+const BUILTIN_LANGUAGES: LanguageSpec[] = [
+	{
+		languageId: "typescript",
+		extensions: [".ts", ".tsx", ".mts", ".cts"],
+		servers: [{ command: "typescript-language-server", args: ["--stdio"] }],
+	},
+	{
+		languageId: "javascript",
+		extensions: [".js", ".jsx", ".mjs", ".cjs"],
+		servers: [{ command: "typescript-language-server", args: ["--stdio"] }],
+	},
+	{
+		languageId: "python",
+		extensions: [".py"],
+		servers: [
+			{ command: "basedpyright-langserver", args: ["--stdio"] },
+			{ command: "pyright-langserver", args: ["--stdio"] },
+		],
+	},
+	{ languageId: "go", extensions: [".go"], servers: [{ command: "gopls", args: [] }] },
+	{ languageId: "rust", extensions: [".rs"], servers: [{ command: "rust-analyzer", args: [] }] },
+	{ languageId: "swift", extensions: [".swift"], servers: [{ command: "sourcekit-lsp", args: [] }] },
+	{
+		languageId: "c",
+		extensions: [".c", ".h"],
+		servers: [{ command: "clangd", args: [] }],
+	},
+	{
+		languageId: "cpp",
+		extensions: [".cc", ".cp", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".ino"],
+		servers: [{ command: "clangd", args: [] }],
+	},
+	{
+		languageId: "csharp",
+		extensions: [".cs"],
+		servers: [{ command: "csharp-ls", args: [] }, { command: "omnisharp", args: ["--languageserver"] }],
+	},
+	{
+		languageId: "java",
+		extensions: [".java"],
+		servers: [{ command: "jdtls", args: [] }],
+	},
+	{
+		languageId: "kotlin",
+		extensions: [".kt", ".kts"],
+		servers: [{ command: "kotlin-language-server", args: [] }],
+	},
+	{
+		languageId: "php",
+		extensions: [".php"],
+		servers: [{ command: "intelephense", args: ["--stdio"] }, { command: "phpactor", args: ["language-server"] }],
+	},
+	{
+		languageId: "ruby",
+		extensions: [".rb"],
+		servers: [{ command: "ruby-lsp", args: [] }, { command: "solargraph", args: ["stdio"] }],
+	},
+	{
+		languageId: "lua",
+		extensions: [".lua"],
+		servers: [{ command: "lua-language-server", args: [] }],
+	},
+	{
+		languageId: "nix",
+		extensions: [".nix"],
+		servers: [{ command: "nixd", args: [] }, { command: "nil", args: [] }],
+	},
+	{
+		languageId: "html",
+		extensions: [".html", ".htm"],
+		servers: [{ command: "vscode-html-language-server", args: ["--stdio"] }],
+	},
+	{
+		languageId: "css",
+		extensions: [".css", ".scss", ".less"],
+		servers: [{ command: "vscode-css-language-server", args: ["--stdio"] }],
+	},
+	{
+		languageId: "json",
+		extensions: [".json", ".jsonc"],
+		servers: [{ command: "vscode-json-language-server", args: ["--stdio"] }],
+	},
+	{
+		languageId: "yaml",
+		extensions: [".yml", ".yaml"],
+		servers: [{ command: "yaml-language-server", args: ["--stdio"] }],
+	},
+];
+
 function activeLspCount() {
 	return [...clients.values()].filter((client) => client.isActive()).length;
 }
@@ -195,20 +294,43 @@ function updateLspStatus(ctx: ToolCtx | undefined) {
 	uiCtx?.ui?.setWidget?.("pi-diet-lsp", undefined);
 }
 
-function languageIdFor(file: string) {
-	const ext = path.extname(file);
-	if ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext))
-		return ext.includes("ts") ? "typescript" : "javascript";
-	if (ext === ".py") return "python";
-	if (ext === ".go") return "go";
-	if (ext === ".rs") return "rust";
-	if (ext === ".swift") return "swift";
-	if ([".json", ".jsonc"].includes(ext)) return "json";
-	if ([".yml", ".yaml"].includes(ext)) return "yaml";
-	return ext.replace(/^\./, "") || "plaintext";
+function lspConfigPath() {
+	const home = process.env.HOME;
+	return home ? path.join(home, ".pi", "agent", "pi-diet-lsp", "config.json") : undefined;
 }
 
-function commandAvailable(command: string) {
+function normalizeSpec(spec: LanguageSpec): LanguageSpec {
+	return {
+		languageId: spec.languageId,
+		extensions: spec.extensions.map((ext) => ext.toLowerCase()),
+		servers: spec.servers.map((server) => ({ command: server.command, args: [...server.args] })),
+	};
+}
+
+function loadConfigLanguages() {
+	const file = lspConfigPath();
+	if (!file || !fsSync.existsSync(file)) return [] as LanguageSpec[];
+	try {
+		const parsed = JSON.parse(fsSync.readFileSync(file, "utf8")) as LspConfig;
+		return Object.values(parsed.languages ?? {})
+			.filter((entry): entry is NonNullable<LspConfig["languages"]>[string] => Boolean(entry?.languageId && entry?.servers?.length))
+			.map((entry) =>
+				normalizeSpec({
+					languageId: entry.languageId!,
+					extensions: entry.extensions ?? [],
+					servers: entry.servers ?? [],
+				}),
+			);
+	} catch {
+		return [];
+	}
+}
+
+function allLanguageSpecs() {
+	return [...loadConfigLanguages(), ...BUILTIN_LANGUAGES.map(normalizeSpec)];
+}
+
+export function commandAvailable(command: string) {
 	const pathValue = process.env.PATH ?? "";
 	const extensions = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
 	return pathValue.split(path.delimiter).some((dir) =>
@@ -216,27 +338,19 @@ function commandAvailable(command: string) {
 	);
 }
 
-function serverFor(
-	file: string,
-): { command: string; args: string[] } | undefined {
-	const ext = path.extname(file);
-	if ([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(ext))
-		return { command: "typescript-language-server", args: ["--stdio"] };
-	if (ext === ".py")
-		return {
-			command: commandAvailable("basedpyright-langserver")
-				? "basedpyright-langserver"
-				: "pyright-langserver",
-			args: ["--stdio"],
-		};
-	if (ext === ".go") return { command: "gopls", args: [] };
-	if (ext === ".rs") return { command: "rust-analyzer", args: [] };
-	if (ext === ".swift") return { command: "sourcekit-lsp", args: [] };
-	if ([".json", ".jsonc"].includes(ext))
-		return { command: "vscode-json-language-server", args: ["--stdio"] };
-	if ([".yml", ".yaml"].includes(ext))
-		return { command: "yaml-language-server", args: ["--stdio"] };
-	return undefined;
+export function resolveLanguageSpec(file: string) {
+	const ext = path.extname(file).toLowerCase();
+	return allLanguageSpecs().find((spec) => spec.extensions.includes(ext));
+}
+
+function languageIdFor(file: string) {
+	return resolveLanguageSpec(file)?.languageId ?? (path.extname(file).replace(/^\./, "") || "plaintext");
+}
+
+export function serverFor(file: string): ServerSpec | undefined {
+	const spec = resolveLanguageSpec(file);
+	if (!spec) return undefined;
+	return spec.servers.find((server) => commandAvailable(server.command)) ?? spec.servers[0];
 }
 
 async function getClient(cwd: string, filePath: string) {
@@ -255,18 +369,9 @@ async function getClient(cwd: string, filePath: string) {
 }
 
 function workspaceProbeFile(cwd: string) {
-	const candidates = [
-		"src/index.ts",
-		"index.ts",
-		"src/index.tsx",
-		"index.tsx",
-		"src/index.js",
-		"index.js",
-		"src/main.ts",
-		"main.ts",
-		"src/main.js",
-		"main.js",
-	];
+	const basenames = ["src/index", "index", "src/main", "main", "src/app", "app"];
+	const exts = [...new Set(BUILTIN_LANGUAGES.flatMap((spec) => spec.extensions))];
+	const candidates = basenames.flatMap((base) => exts.map((ext) => `${base}${ext}`));
 	const found = candidates
 		.map((candidate) => path.join(cwd, candidate))
 		.find((candidate) => fsSync.existsSync(candidate) && serverFor(candidate));

@@ -53,15 +53,60 @@ pi -e ./index.ts
 
 ## Runtime requirements
 
-LSP tools use language servers from `PATH`:
+LSP tools resolve language servers from `PATH` using broader built-in defaults and first-available selection when multiple servers are supported.
+
+Current built-in mappings include:
 
 - TypeScript/JavaScript: `typescript-language-server --stdio`
-- Python: `basedpyright-langserver --stdio` when available, otherwise `pyright-langserver --stdio`
+- Python: `basedpyright-langserver --stdio`, fallback `pyright-langserver --stdio`
 - Go: `gopls`
 - Rust: `rust-analyzer`
 - Swift: `sourcekit-lsp`
+- C/C++: `clangd`
+- C#: `csharp-ls`, fallback `omnisharp --languageserver`
+- Java: `jdtls`
+- Kotlin: `kotlin-language-server`
+- PHP: `intelephense --stdio`, fallback `phpactor language-server`
+- Ruby: `ruby-lsp`, fallback `solargraph stdio`
+- Lua: `lua-language-server`
+- Nix: `nixd`, fallback `nil`
+- HTML: `vscode-html-language-server --stdio`
+- CSS/SCSS/Less: `vscode-css-language-server --stdio`
 - JSON: `vscode-json-language-server --stdio`
 - YAML: `yaml-language-server --stdio`
+
+## Configuration overrides
+
+You can override or add language mappings with:
+
+```text
+~/.pi/agent/pi-diet-lsp/config.json
+```
+
+Example:
+
+```json
+{
+  "languages": {
+    "lua_override": {
+      "languageId": "lua",
+      "extensions": [".lua"],
+      "servers": [
+        { "command": "custom-lua-lsp", "args": ["--stdio"] }
+      ]
+    }
+  }
+}
+```
+
+Configured languages are checked before built-in defaults.
+
+## Validation
+
+```bash
+npm run lint
+npm run test:resolution
+```
 
 ## Prompt overhead
 
