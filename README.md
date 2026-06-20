@@ -1,5 +1,7 @@
 # pi-diet-lsp
 
+> One of my diet context engineering and workflow extensions. Add pi-diet-LSP, pi-diet-Ripgrep, pi-repo-move and others from [npm](https://www.npmjs.com/~probabilityengineer).
+
 On-demand LSP code-intelligence tools for Pi without automatic diagnostics or context injection.
 
 `pi-diet-lsp` gives Pi agents focused, model-visible Language Server Protocol tools for definitions, references, symbols, hover/type information, and diagnostics. It keeps the surface compact and explicit: no automatic diagnostics pipeline, no context injection, no read guard, no skills, and no session-start bootstrap. Agents call the tools when precise code intelligence is useful.
