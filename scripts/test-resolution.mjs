@@ -23,6 +23,9 @@ for (const name of [
   fs.chmodSync(file, 0o755);
 }
 fs.mkdirSync(path.join(fakeHome, ".pi", "agent", "pi-diet-lsp"), { recursive: true });
+fs.mkdirSync(path.join(fakeHome, ".dotnet", "tools"), { recursive: true });
+fs.writeFileSync(path.join(fakeHome, ".dotnet", "dotnet"), "#!/bin/sh\nexit 0\n");
+fs.chmodSync(path.join(fakeHome, ".dotnet", "dotnet"), 0o755);
 fs.writeFileSync(
   path.join(fakeHome, ".pi", "agent", "pi-diet-lsp", "config.json"),
   JSON.stringify({
@@ -31,6 +34,16 @@ fs.writeFileSync(
         languageId: "lua",
         extensions: [".lua"],
         servers: [{ command: "custom-lua-lsp", args: ["--stdio"] }],
+      },
+      csharp_override: {
+        languageId: "csharp",
+        extensions: [".csx"],
+        servers: [{ command: "omnisharp", args: ["--languageserver"], env: { DOTNET_ROOT: "/custom/dotnet" } }],
+      },
+      csharp_inferred: {
+        languageId: "csharp",
+        extensions: [".csi"],
+        servers: [{ command: "omnisharp", args: ["--languageserver"] }],
       },
     },
   }),
@@ -77,6 +90,9 @@ assert.equal(serverFor("x.vue")?.command, "vue-language-server");
 assert.equal(serverFor("x.html")?.command, "vscode-html-language-server");
 assert.equal(serverFor("x.nix")?.command, "nixd");
 assert.equal(serverFor("x.lua")?.command, "custom-lua-lsp");
+assert.equal(serverFor("x.csx")?.env?.DOTNET_ROOT, "/custom/dotnet");
+assert.equal(serverFor("x.csx")?.launchEnv.DOTNET_ROOT, "/custom/dotnet");
+assert.equal(serverFor("x.csi")?.launchEnv.DOTNET_ROOT, path.join(fakeHome, ".dotnet"));
 
 console.log("pi-diet-lsp resolution tests passed");
 fs.rmSync(outDir, { recursive: true, force: true });

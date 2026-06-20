@@ -41,11 +41,17 @@ class LspClient {
 	private command: string;
 	private args: string[];
 	private cwd: string;
+	private env: NodeJS.ProcessEnv;
+	private stderr = "";
+	private stdout = "";
+	private exitCode: number | null = null;
+	private exitSignal: NodeJS.Signals | null = null;
 
-	constructor(command: string, args: string[], cwd: string) {
+	constructor(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv) {
 		this.command = command;
 		this.args = args;
 		this.cwd = cwd;
+		this.env = env;
 	}
 
 	start() {
@@ -53,8 +59,17 @@ class LspClient {
 		this.proc = spawn(this.command, this.args, {
 			cwd: this.cwd,
 			stdio: "pipe",
+			env: this.env,
 		});
-		this.proc.stdout.on("data", (chunk) => this.onData(chunk));
+		this.proc.stdout.on("data", (chunk) => {
+			this.stdout += chunk.toString();
+			this.stdout = this.stdout.slice(-8000);
+			this.onData(chunk);
+		});
+		this.proc.stderr.on("data", (chunk) => {
+			this.stderr += chunk.toString();
+			this.stderr = this.stderr.slice(-8000);
+		});
 		this.proc.on("error", (error) => {
 			for (const pending of this.pending.values()) {
 				pending.reject(error instanceof Error ? error : new Error(String(error)));
@@ -63,10 +78,28 @@ class LspClient {
 			this.proc = undefined;
 			this.initialized = false;
 		});
-		this.proc.on("exit", () => {
+		this.proc.on("exit", (code, signal) => {
+			this.exitCode = code;
+			this.exitSignal = signal;
 			this.proc = undefined;
 			this.initialized = false;
 		});
+	}
+
+	private describeLaunchFailure(extra?: string) {
+		const stderr = this.stderr.trim();
+		const stdout = this.stdout.trim();
+		const pieces = [
+			`Failed to start LSP server '${this.command}'.`,
+			`cwd=${this.cwd}`,
+			this.args.length ? `args=${JSON.stringify(this.args)}` : undefined,
+			extra,
+			this.exitCode !== null ? `exitCode=${this.exitCode}` : undefined,
+			this.exitSignal ? `signal=${this.exitSignal}` : undefined,
+			stderr ? `stderr:\n${truncateText(stderr, 4000)}` : undefined,
+			stdout ? `stdout:\n${truncateText(stdout, 2000)}` : undefined,
+		].filter(Boolean);
+		return new Error(pieces.join("\n\n"));
 	}
 
 	isActive() {
@@ -121,7 +154,7 @@ class LspClient {
 		return new Promise((resolve, reject) => {
 			const t = setTimeout(() => {
 				this.pending.delete(id);
-				reject(new Error(`${method} timed out`));
+				reject(this.describeLaunchFailure(`${method} timed out`));
 			}, timeoutMs);
 			this.pending.set(id, {
 				resolve: (v) => {
@@ -173,7 +206,7 @@ class LspClient {
 const clients = new Map<string, LspClient>();
 let lastUiCtx: ToolCtx | undefined;
 
-type ServerSpec = { command: string; args: string[] };
+type ServerSpec = { command: string; args: string[]; env?: Record<string, string> };
 type LanguageSpec = {
 	languageId: string;
 	extensions: string[];
@@ -182,6 +215,8 @@ type LanguageSpec = {
 type LspConfig = {
 	languages?: Record<string, { languageId?: string; extensions?: string[]; servers?: ServerSpec[] }>;
 };
+
+type ResolvedServerSpec = ServerSpec & { available: boolean; launchEnv: NodeJS.ProcessEnv };
 
 const BUILTIN_LANGUAGES: LanguageSpec[] = [
 	{
@@ -308,7 +343,7 @@ function normalizeSpec(spec: LanguageSpec): LanguageSpec {
 	return {
 		languageId: spec.languageId,
 		extensions: spec.extensions.map((ext) => ext.toLowerCase()),
-		servers: spec.servers.map((server) => ({ command: server.command, args: [...server.args] })),
+		servers: spec.servers.map((server) => ({ command: server.command, args: [...server.args], env: server.env ? { ...server.env } : undefined })),
 	};
 }
 
@@ -335,8 +370,8 @@ function allLanguageSpecs() {
 	return [...loadConfigLanguages(), ...BUILTIN_LANGUAGES.map(normalizeSpec)];
 }
 
-export function commandAvailable(command: string) {
-	const pathValue = process.env.PATH ?? "";
+export function commandAvailable(command: string, env: NodeJS.ProcessEnv = process.env) {
+	const pathValue = env.PATH ?? "";
 	const extensions = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
 	return pathValue.split(path.delimiter).some((dir) =>
 		extensions.some((ext) => fsSync.existsSync(path.join(dir, `${command}${ext}`))),
@@ -352,10 +387,30 @@ function languageIdFor(file: string) {
 	return resolveLanguageSpec(file)?.languageId ?? (path.extname(file).replace(/^\./, "") || "plaintext");
 }
 
-export function serverFor(file: string): ServerSpec | undefined {
+function mergedServerEnv(server: ServerSpec): NodeJS.ProcessEnv {
+	const env = { ...process.env, ...(server.env ?? {}) };
+	const home = env.HOME;
+	const inferredDotnetRoot = !env.DOTNET_ROOT && server.command === "omnisharp" && home
+		? path.join(home, ".dotnet")
+		: undefined;
+	if (inferredDotnetRoot && fsSync.existsSync(path.join(inferredDotnetRoot, "dotnet"))) {
+		env.DOTNET_ROOT = inferredDotnetRoot;
+	}
+	if (env.DOTNET_ROOT && env.PATH && !env.PATH.split(path.delimiter).includes(env.DOTNET_ROOT)) {
+		env.PATH = `${env.DOTNET_ROOT}${path.delimiter}${env.PATH}`;
+	}
+	if (env.DOTNET_ROOT && env.PATH && !env.PATH.split(path.delimiter).includes(path.join(env.DOTNET_ROOT, "tools"))) {
+		env.PATH = `${path.join(env.DOTNET_ROOT, "tools")}${path.delimiter}${env.PATH}`;
+	}
+	return env;
+}
+
+export function serverFor(file: string): ResolvedServerSpec | undefined {
 	const spec = resolveLanguageSpec(file);
 	if (!spec) return undefined;
-	return spec.servers.find((server) => commandAvailable(server.command)) ?? spec.servers[0];
+	const available = spec.servers.find((server) => commandAvailable(server.command, mergedServerEnv(server))) ?? spec.servers[0];
+	const launchEnv = mergedServerEnv(available);
+	return { ...available, available: commandAvailable(available.command, launchEnv), launchEnv };
 }
 
 async function getClient(cwd: string, filePath: string) {
@@ -364,10 +419,19 @@ async function getClient(cwd: string, filePath: string) {
 		throw new Error(
 			`No lightweight LSP server mapping for ${path.extname(filePath) || filePath}`,
 		);
-	const key = `${cwd}:${spec.command}`;
+	if (!spec.available) {
+		const lang = resolveLanguageSpec(filePath)?.languageId ?? (path.extname(filePath) || filePath);
+		const base = [`No installed LSP server command found for ${lang}.`, `Tried: ${resolveLanguageSpec(filePath)?.servers.map((s) => s.command).join(", ")}`];
+		if (lang === "csharp") {
+			base.push("For C#, install csharp-ls or omnisharp so the executable is runnable from PATH.");
+			base.push("OmniSharp may also require a working dotnet runtime and DOTNET_ROOT.");
+		}
+		throw new Error(base.join("\n"));
+	}
+	const key = `${cwd}:${spec.command}:${JSON.stringify(spec.env ?? {})}`;
 	let c = clients.get(key);
 	if (!c) {
-		c = new LspClient(spec.command, spec.args, cwd);
+		c = new LspClient(spec.command, spec.args, cwd, spec.launchEnv);
 		clients.set(key, c);
 	}
 	return c;

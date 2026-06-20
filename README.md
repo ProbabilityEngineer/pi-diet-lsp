@@ -102,6 +102,36 @@ Example:
 
 Configured languages are checked before built-in defaults.
 
+You can also provide per-server environment variables, which is especially useful for OmniSharp:
+
+```json
+{
+  "languages": {
+    "csharp_override": {
+      "languageId": "csharp",
+      "extensions": [".cs"],
+      "servers": [
+        {
+          "command": "omnisharp",
+          "args": ["--languageserver"],
+          "env": {
+            "DOTNET_ROOT": "/Users/you/.dotnet"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## C# notes and troubleshooting
+
+- `pi-diet-lsp` prefers `csharp-ls` first, then falls back to `omnisharp`.
+- The selected executable must be runnable from `PATH` in a non-interactive shell.
+- For OmniSharp, `pi-diet-lsp` now auto-uses `~/.dotnet` as `DOTNET_ROOT` when present. If your setup differs, set `env.DOTNET_ROOT` in config.
+- Legacy `.NET Framework` projects may still load with partial diagnostics on macOS/Linux if reference assemblies/targeting packs are unavailable.
+- If a server fails to launch, tool errors now include launch details and stderr instead of only reporting an initialize timeout.
+
 ## Validation
 
 ```bash
