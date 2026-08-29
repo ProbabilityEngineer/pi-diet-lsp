@@ -38,7 +38,8 @@
 - If `jj new --no-edit` creates an empty child but leaves `@` on the completed change, switch to the empty child with `jj edit <empty-child>` before moving `main`.
 - For off-machine backup or publishing, prefer `/jj-align-push [branch]` after `@` is empty and `@-` is the completed change.
 
-## Saguaro
+## Deprecated tools
 
-- Use Saguaro only when explicitly requested or when a repo-local `AGENTS.md` requires it.
-- Treat Saguaro results as advisory; do not let stale or broad generated feedback override repo evidence, tests, or current user instructions.
+- `sag` / `saguaro` are deprecated here.
+- Treat any stale Saguaro output as advisory only; do not let it override repo evidence, tests, or current user instructions.
+- See `deprecated/saguaro.md` for the deprecation note.
