@@ -37,9 +37,3 @@
 - Before declaring work pushed or clean, verify bookmark/branch alignment; a clean jj working copy is not enough.
 - If `jj new --no-edit` creates an empty child but leaves `@` on the completed change, switch to the empty child with `jj edit <empty-child>` before moving `main`.
 - For off-machine backup or publishing, prefer `/jj-align-push [branch]` after `@` is empty and `@-` is the completed change.
-
-## Deprecated tools
-
-- `sag` / `saguaro` are deprecated here.
-- Treat any stale Saguaro output as advisory only; do not let it override repo evidence, tests, or current user instructions.
-- See `deprecated/saguaro.md` for the deprecation note.
